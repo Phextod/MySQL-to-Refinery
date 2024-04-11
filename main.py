@@ -65,7 +65,8 @@ def GenerateDBModel(tables, table_relations, table_descriptions):
         # Adding attributes
         relevant_attributes = table_descriptions[table_name]
         for attribute in relevant_attributes:
-            db_attribute = DBAttribute(attribute[0], attribute[1], attribute[2] == "YES", attribute[3], attribute[4])
+            db_attribute = DBAttribute(attribute[0], attribute[1], attribute[2] == "YES",
+                                       attribute[3], attribute[4], attribute[5])
             db_object.add_attribute(db_attribute)
 
         # Adding relations
@@ -74,6 +75,8 @@ def GenerateDBModel(tables, table_relations, table_descriptions):
             db_relation = DBRelation(relation[1], relation[2], relation[4], relation[5], 1, 1)
             db_object.add_relation(db_relation)
         db_model.add_db_object(db_object)
+
+    db_model.update_relations_by_attributes()
 
     return db_model
 

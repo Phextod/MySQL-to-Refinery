@@ -27,10 +27,10 @@ class DBAttribute:
 
 class DBRelation:
     def __init__(self, origin_table, origin_name, target_table, target_name, multiplicity_min, multiplicity_max):
-        self.origin_table = origin_table
-        self.origin_name = origin_name
-        self.target_table = target_table
-        self.target_name = target_name
+        self.origin_table: str = origin_table
+        self.origin_name: str = origin_name
+        self.target_table: str = target_table
+        self.target_name: str = target_name
         self.multiplicity_min = multiplicity_min
         self.multiplicity_max = multiplicity_max
 
@@ -44,10 +44,11 @@ class DBRelation:
 class DBObject:
     def __init__(self, name, attributes=None, relations=None, count_min=1, count_max="*"):
         self.name = name
-        self.attributes = attributes or []
-        self.relations = relations or []
+        self.attributes: List[DBAttribute] = attributes or []
+        self.relations: List[DBRelation] = relations or []  # relations pointing away from this object
         self.scope_count_min = count_min
         self.scope_count_max = count_max
+        self.dependency_order = -1
 
     def add_attribute(self, attribute):
         self.attributes.append(attribute)
@@ -63,6 +64,9 @@ class DBObject:
             return f"""class {self.name} {{}}"""
 
     def CSVtoDBPrimitives(self, csv_folder_path, db_primitives: List[DBPrimitiveObject]):
+        """
+        Stores generated DBPrimitives in the given db_primitives list
+        """
         with open(f"./{csv_folder_path}/{self.name}.csv", "r") as file:
             lines = file.readlines()[1:]  # remove header line
             main_csv = [line.split(",")[0] for line in lines if not line.startswith(":")]  # remove weird ::X lines
@@ -88,39 +92,3 @@ class DBObject:
                 origin_primitive.update_attribute({
                     relation.origin_name: target_primitive.get_attribute(relation.target_name)
                 })
-
-
-class DBModel:
-    def __init__(self, db_object=None):
-        self.db_objects = db_object or []
-        self.db_primitives = []
-
-    def add_db_object(self, db_object):
-        self.db_objects.append(db_object)
-
-    def toXCore(self):
-        xcore_classes_strings = "\n".join([db_objects.toXCore() for db_objects in self.db_objects])
-        scope_strings = ",\n   ".join([f"{db_objects.name}="
-                                       f"{db_objects.scope_count_min}..{db_objects.scope_count_max}"
-                                       for db_objects in self.db_objects])
-        return f"{xcore_classes_strings}\n\nscope\n   {scope_strings}."
-
-    def CSVtoDBPrimitives(self, csv_folder_path):
-        # Determine which tables to fill based on dependencies
-        unfilled_db_objects = copy.deepcopy(self.db_objects)
-        while unfilled_db_objects:
-            for db_object in unfilled_db_objects:
-                for db_relation in db_object.relations:
-                    # if foreign key table is not yet filled
-                    if db_relation.target_table in [o.name for o in unfilled_db_objects] \
-                            and db_relation.target_table != db_object.name:
-                        break
-                else:
-                    # here db_object has no unsatisfied relations, and can be processed safely
-                    db_object.CSVtoDBPrimitives(csv_folder_path, self.db_primitives)
-                    unfilled_db_objects.remove(db_object)
-                    continue
-
-    def DBPrimitivesToSQL(self):
-
-        print("DONE")

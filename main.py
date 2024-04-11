@@ -1,8 +1,9 @@
 import mysql.connector
 import inquirer
 
-from DBConstructs import DBAttribute, DBRelation, DBObject, DBModel
 from dbConfig import db_config
+from dbConstructs import DBAttribute, DBRelation, DBObject
+from dbModel import DBModel
 
 
 def ConnectToMySQL(config):
@@ -98,20 +99,23 @@ def main():
 
     db_model = GenerateDBModel(tables, table_relations, table_descriptions)
     x_core = db_model.toXCore()
-    with open("XCore.txt", "w") as file:
+    with open("out/XCore.txt", "w") as file:
         file.write(x_core)
-
     print("XCore code written to XCore.txt. Review it before continuing!")
     input("Press Enter to connect to Refinery...")
 
     # Reading back the reviewed/updated XCore
-    with open("XCore.txt", "r") as file:
+    with open("out/XCore.txt", "r") as file:
         x_core = file.read()
 
     # Generating data with Refinery
     CallRefinery(x_core)
 
-    db_model.CSVtoDBPrimitives("CSVs")
+    insert_sql = db_model.CSVs_to_SQL("CSVs")
+    with open("out/insert_data.sql", "w") as file:
+        file.write(insert_sql)
+    print("Data inserting SQL written to insert_data.sql. Review it before continuing!")
+    input("Press Enter to run insert_data.sql on the database...")
 
 
 if __name__ == "__main__":

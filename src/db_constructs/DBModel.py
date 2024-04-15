@@ -1,7 +1,8 @@
 from typing import List, Dict
-from dbConstructs import DBObject, DBPrimitiveObject
+from src.db_constructs.DBObject import DBObject
 
-import calcFillOrder
+from src.utility import CalcFillOrder
+from src.db_constructs.DBPrimitiveObject import DBPrimitiveObject
 
 
 class DBModel:
@@ -22,18 +23,18 @@ class DBModel:
                 target_attribute = [a for a in target_object.attributes if a.name == rel.target_name][0]
                 rel.target_attribute = target_attribute
 
-    def toXCore(self):
-        xcore_classes_strings = "\n".join([db_objects.toXCore() for db_objects in self.db_objects])
+    def to_x_core(self):
+        xcore_classes_strings = "\n".join([db_objects.to_x_core() for db_objects in self.db_objects])
         scope_strings = ",\n   ".join([f"{db_objects.name}="
                                        f"{db_objects.scope_count_min}..{db_objects.scope_count_max}"
                                        for db_objects in self.db_objects])
         return f"{xcore_classes_strings}\n\nscope\n   {scope_strings}."
 
-    def CSVs_to_DBPrimitives(self, csv_folder_path, db_objects_in_fill_order: List[DBObject]):
+    def csvs_to_db_primitives(self, csv_folder_path, db_objects_in_fill_order: List[DBObject]):
         for db_object in db_objects_in_fill_order:
             db_object.csvs_to_primitive_objects(csv_folder_path, self.db_primitives)
 
-    def DBPrimitives_to_SQL(self, fill_ordered_db_object):
+    def db_primitives_to_sql(self, fill_ordered_db_object):
         insert_sql = ""
 
         insert_sql += "SET FOREIGN_KEY_CHECKS=0;\n"  # TODO check if there is a better way
@@ -60,7 +61,7 @@ class DBModel:
 
         return insert_sql
 
-    def CSVs_to_SQL(self, csv_folder_path):
-        fill_ordered_db_object = calcFillOrder.calc_fill_order(self.db_objects)
-        self.CSVs_to_DBPrimitives(csv_folder_path, fill_ordered_db_object)
-        return self.DBPrimitives_to_SQL(fill_ordered_db_object)
+    def csvs_to_sql(self, csv_folder_path):
+        fill_ordered_db_object = CalcFillOrder.calc_fill_order(self.db_objects)
+        self.csvs_to_db_primitives(csv_folder_path, fill_ordered_db_object)
+        return self.db_primitives_to_sql(fill_ordered_db_object)

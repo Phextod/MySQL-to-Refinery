@@ -1,47 +1,9 @@
-from typing import List, Optional
+from typing import List
 
-from generate_data_for_type import generate_data_for_type
-
-
-class DBPrimitiveObject:
-    def __init__(self, db_type, name):
-        self.db_type = db_type
-        self.name = name
-        self.attributes = {}
-
-    def update_attribute(self, attribute):
-        self.attributes.update(attribute)
-
-    def get_attribute(self, attribute):
-        return self.attributes.get(attribute)
-
-
-class DBAttribute:
-    def __init__(self, name, db_type, nullable, default_value, key, extra, value=None):
-        self.name = name
-        self.db_type = db_type
-        self.nullable = nullable
-        self.default_value = default_value
-        self.key = key
-        self.extra = extra
-        self.value = value
-
-
-class DBRelation:
-    def __init__(self, origin_table, origin_name, target_table, target_name, multiplicity_min, multiplicity_max):
-        self.origin_table: str = origin_table
-        self.origin_name: str = origin_name
-        self.target_table: str = target_table
-        self.target_name: str = target_name
-        self.multiplicity_min = multiplicity_min
-        self.multiplicity_max = multiplicity_max
-        self.target_attribute: Optional[DBAttribute] = None
-
-    def toXCore(self):
-        if self.multiplicity_min == self.multiplicity_max:
-            return f"    {self.target_table}[{self.multiplicity_min}] {self.origin_name}"
-        else:
-            return f"    {self.target_table}[{self.multiplicity_min}..{self.multiplicity_max}] {self.origin_name}"
+from src.db_constructs.DBAttribute import DBAttribute
+from src.db_constructs.DBPrimitiveObject import DBPrimitiveObject
+from src.db_constructs.DBRelation import DBRelation
+from src.utility.GenerateDataForType import generate_data_for_type
 
 
 class DBObject:
@@ -59,8 +21,8 @@ class DBObject:
     def add_relation(self, relation):
         self.relations.append(relation)
 
-    def toXCore(self):
-        relation_strings = "\n".join([relation.toXCore() for relation in self.relations])
+    def to_x_core(self):
+        relation_strings = "\n".join([relation.to_x_core() for relation in self.relations])
         if relation_strings:
             return f"class {self.name} {{\n{relation_strings}\n}}"
         else:

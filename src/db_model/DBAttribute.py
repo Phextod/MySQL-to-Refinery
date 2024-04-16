@@ -1,9 +1,8 @@
 class DBAttribute:
-    def __init__(self, name, db_type, nullable, default_value, key, extra, value=None):
+    def __init__(self, name: str, db_type: str, nullable: bool, key_type: str, default_value, extra: str):
         self.name = name
         self.db_type = db_type
         self.nullable = nullable
+        self.key_type = key_type  # PRI/UNI/MUL
         self.default_value = default_value
-        self.key = key
         self.extra = extra
-        self.value = value

@@ -1,5 +1,6 @@
 import mysql.connector
 import inquirer
+from mysql.connector import MySQLConnection
 
 
 def connect_to_my_sql(config):
@@ -49,3 +50,19 @@ def get_schema_data(conn):
     cursor.close()
 
     return tables, table_relations, table_descriptions
+
+
+def run_sql(conn: MySQLConnection, sql):
+    print("Started running sql")
+    cursor = conn.cursor()
+
+    statements = [s.strip() for s in sql.split(";")]
+
+    for statement in statements:
+        if statement == "":
+            continue
+
+        cursor.execute(statement)
+        conn.commit()
+
+    cursor.close()

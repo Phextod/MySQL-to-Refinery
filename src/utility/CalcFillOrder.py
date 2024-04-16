@@ -1,42 +1,51 @@
-from typing import List
+from typing import Dict
 
 import networkx as nx
 
-from src.db_constructs.DBObject import DBObject
+from src.db_model.DBTable import DBTable
 
 
-def calc_fill_order(db_objects: List[DBObject], ordered_list=None):
+def calc_fill_order(db_tables: Dict[str, DBTable], ordered_dict=None):
+    """
+    Calculate the order in which the db tables should be filled in order not to violate foreign key constraints
+    """
     # Create relation graph
     relation_graph = nx.DiGraph()
-    for db_object in db_objects:
-        for db_relation in db_object.relations:
-            origin_index = next((i for i, obj in enumerate(db_objects) if obj.name == db_relation.origin_table))
-            target_index = next((i for i, obj in enumerate(db_objects) if obj.name == db_relation.target_table))
-            relation_graph.add_edge(origin_index, target_index)
+    for db_table in db_tables.values():
+        for db_relation in db_table.relations:
+            origin_table_name = db_relation.origin_table_name
+            target_table_name = db_relation.target_table_name
+            relation_graph.add_edge(origin_table_name, target_table_name)
 
     # Get strongly connected components
-    scc_indexes = list(nx.strongly_connected_components(relation_graph))
+    scc_names = list(nx.strongly_connected_components(relation_graph))
     scc_order = list(nx.topological_sort(nx.condensation(relation_graph)))
     scc_order.reverse()
 
-    if ordered_list is None:
-        ordered_list = []
+    if ordered_dict is None:
+        ordered_dict = {}
 
     for i in scc_order:
-        scc_index_list = list(scc_indexes[i])
-        if len(scc_index_list) == 1:
-            ordered_list.append(db_objects[scc_index_list[0]])
+        scc_name_list = list(scc_names[i])
+        if len(scc_name_list) == 1:
+            table_name = scc_name_list[0]
+            ordered_dict.update({table_name: db_tables[table_name]})
         else:
-            scc_db_objects = [db_objects[j] for j in scc_index_list]
-            # mark a table as half filled if its relations are nullable
-            # then try to find a sub-order
-            for scc_db_object in scc_db_objects:
-                for object_relation in scc_db_object.relations:
-                    if not [att for att in scc_db_object.attributes if att.name == object_relation.origin_name][0].nullable:
+            # TODO: test with reference loops
+            scc_db_tables = [db_tables[name] for name in scc_name_list]
+            # find a table that has a nullable relation
+            # mark it, then try to find a sub-order
+            for scc_db_table in scc_db_tables:
+                for table_relation in scc_db_table.relations:
+                    attribute = [att for att in scc_db_table.attributes
+                                 if att.name == table_relation.origin_attribute_name][0]
+                    if not attribute.nullable:
                         break
                 else:
-                    ordered_list.append(scc_db_object)
-                    scc_db_objects.remove(scc_db_object)
-                    calc_fill_order(scc_db_objects, ordered_list)
+                    # TODO: mark for half filling
+                    table_name = scc_db_table.name
+                    ordered_dict.update({table_name: db_tables[table_name]})
+                    scc_db_tables.remove(scc_db_table)
+                    calc_fill_order({t.name: t for t in scc_db_tables}, ordered_dict)
 
-    return ordered_list
+    return ordered_dict

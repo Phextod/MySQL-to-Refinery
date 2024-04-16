@@ -1,22 +1,21 @@
 from faker import Faker
-import random
 
 fake = Faker()
 
 
-def generate_data_for_type(db_type, seed):
+def generate_data_for_type(db_type, seed, object_name="") -> str:
     Faker.seed(seed)
 
     # https://dev.mysql.com/doc/refman/8.3/en/integer-types.html
-    if 'tinyint' == db_type or 'smallint' == db_type or 'mediumint' == db_type\
+    if 'tinyint' == db_type or 'smallint' == db_type or 'mediumint' == db_type \
             or 'int' == db_type or 'bigint' == db_type:
-        return seed % 127
+        return str(seed % 127)
 
     elif 'float' == db_type:
-        return fake.pyfloat()
+        return str(fake.pyfloat())
 
     elif 'double' == db_type:
-        return fake.pyfloat()
+        return str(fake.pyfloat())
 
     # https://dev.mysql.com/doc/refman/8.3/en/precision-math-decimal-characteristics.html
     elif 'decimal' in db_type:
@@ -38,7 +37,7 @@ def generate_data_for_type(db_type, seed):
         decimal_value = fake.random_number(digits=precision - scale, fix_len=False) + \
                         fake.random_number(digits=scale, fix_len=False) * 10 ** -scale
 
-        return decimal_value
+        return str(decimal_value)
 
     elif 'char' == db_type:
         n = (seed % 52) + ord("A")
@@ -47,17 +46,15 @@ def generate_data_for_type(db_type, seed):
         return chr(n)
 
     elif 'text' == db_type:
-        return f"'{fake.text()}'"
+        return f"'{seed}_{object_name}_text'"
 
     elif 'varchar' in db_type:
         length = int(db_type.split('(')[1].split(')')[0])
-        return f"'{fake.text(max_nb_chars=length)[:min(length, 1000)]}'"
+        text = f"{seed}_{object_name}_varchar"[:length]
+        return f"'{text}'"
 
     elif 'date' == db_type or 'time' == db_type or 'timestamp' == db_type:
         return f"'{fake.date_time_this_century()}'"
 
-    elif 'binary' == db_type:
-        return fake.binary()
-
     else:
-        return None
+        return "NULL"

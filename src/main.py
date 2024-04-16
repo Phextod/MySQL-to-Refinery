@@ -1,3 +1,4 @@
+import os
 import subprocess
 
 from src.config import db_config, REFINERY_CODE_PATH, REFINERY_JAR_PATH, REFINERY_RESULT_PATH, INSERT_SQL_PATH
@@ -31,6 +32,9 @@ def main():
     db_model = generate_db_model(tables, table_relations, table_descriptions)
 
     refinery_code = db_model.generate_refinery_code()
+
+    # Create directories if they don't exist
+    os.makedirs(os.path.dirname(REFINERY_CODE_PATH), exist_ok=True)
     with open(REFINERY_CODE_PATH, "w") as file:
         file.write(refinery_code)
     print(f"Refinery code written to {REFINERY_CODE_PATH}. Review it before continuing!")

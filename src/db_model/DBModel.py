@@ -3,7 +3,7 @@ from typing import Dict
 
 from src.db_model.DBAttribute import DBAttribute
 from src.db_model.DBRelation import DBRelation
-from src.db_model.DBTable import DBTable
+from src.db_model.DBTable import DBTable, FillStatus
 
 from src.utility import CalcFillOrder
 
@@ -81,12 +81,65 @@ class DBModel:
         insert_sql += "\nSET FOREIGN_KEY_CHECKS=1;\n"
         insert_sql += "\n\n"
 
+        # Write INSERT statements
         for table_name, table in self.db_tables.items():
             attribute_names = [a.name for a in table.attributes]
             insert_sql += f"INSERT INTO {table_name} ({','.join(attribute_names)}) VALUES\n"
+
+            unfilled_reference_attribute_names = []
+            for relation in table.relations:
+                # Self references do not matter
+                if relation.target_table_name == table_name:
+                    continue
+                if self.db_tables[relation.target_table_name].fill_status == FillStatus.NOT_FILLED:
+                    unfilled_reference_attribute_names.append(relation.origin_attribute_name)
+
             for object_name, db_object in table.objects.items():
-                insert_sql += "(" + (",".join([db_object[attr] for attr in attribute_names])) + "),"
+                attribute_values = []
+                for attribute in attribute_names:
+                    if attribute in unfilled_reference_attribute_names:
+                        attribute_values.append("NULL")
+                    else:
+                        attribute_values.append(db_object[attribute])
+
+                insert_sql += "(" + (",".join(attribute_values)) + "),"
+
+            if unfilled_reference_attribute_names:
+                table.fill_status = FillStatus.HALF_FILLED
+            else:
+                table.fill_status = FillStatus.FILLED
+
             insert_sql = insert_sql[:-1] + ";\n\n"
+
+        # Write UPDATE statements for tables that were half filled
+        tables_to_update = [t for t in self.db_tables.values() if t.fill_status == FillStatus.HALF_FILLED]
+        for table in tables_to_update:
+            unfilled_reference_attribute_names = []
+            attribute_names = []
+            for relation in table.relations:
+                # Self references do not matter
+                if relation.target_table_name == table.name:
+                    continue
+                if self.db_tables[relation.target_table_name].fill_status == FillStatus.NOT_FILLED:
+                    unfilled_reference_attribute_names.append(relation.origin_attribute_name)
+                else:
+                    attribute_names.append(relation.origin_attribute_name)
+
+            id_attribute_name = [a.name for a in table.attributes if a.key_type == "PRI"][0]
+            for object_name, db_object in table.objects.items():
+                attribute_assignments = []
+                for attribute in attribute_names:
+                    attribute_assignments.append(f"{attribute} = {db_object[attribute]}")
+
+                insert_sql += f"UPDATE {table.name}\n"
+                insert_sql += f"SET {', '.join(attribute_assignments)}\n"
+                insert_sql += f"WHERE {id_attribute_name} = {db_object[id_attribute_name]};\n\n"
+
+            if unfilled_reference_attribute_names:
+                table.fill_status = FillStatus.HALF_FILLED
+            else:
+                table.fill_status = FillStatus.FILLED
+                tables_to_update.remove(table)
 
         insert_sql = insert_sql[:-1]
         return insert_sql

@@ -53,7 +53,7 @@ def get_schema_data(conn):
 
 
 def run_sql(conn: MySQLConnection, sql):
-    print("Started running sql")
+    print("Running sql on db")
     cursor = conn.cursor()
 
     statements = [s.strip() for s in sql.split(";")]

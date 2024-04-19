@@ -43,7 +43,7 @@ class DBModel:
         """))
 
         node_multiplicity_min = \
-            sum(tab.scope_count_min for tab in self.db_tables.values()) * node_multiplicity_multiplier
+            math.ceil(sum(tab.scope_count_min for tab in self.db_tables.values()) * node_multiplicity_multiplier)
         node_multiplicity_max = math.ceil(node_multiplicity_min * multiplicity_max_multiplier)
 
         rendered_template = template.render(

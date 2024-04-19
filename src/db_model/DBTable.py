@@ -45,10 +45,3 @@ class DBTable:
     def get_id_of(self, object_name):
         id_attribute_name = [a.name for a in self.attributes if a.key_type == "PRI"][0]
         return self.objects[object_name][id_attribute_name]
-
-    def generate_refinery_code(self):
-        relation_strings = "\n".join([relation.generate_refinery_code() for relation in self.relations])
-        if relation_strings:
-            return f"class {self.name} {{\n{relation_strings}\n}}"
-        else:
-            return f"""class {self.name} {{}}"""

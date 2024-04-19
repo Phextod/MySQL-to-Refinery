@@ -9,9 +9,3 @@ class DBRelation:
 
         self.multiplicity_min = multiplicity_min
         self.multiplicity_max = multiplicity_max
-
-    def generate_refinery_code(self):
-        if self.multiplicity_min == self.multiplicity_max:
-            return f"    {self.target_table_name}[{self.multiplicity_min}] {self.origin_attribute_name}"
-        else:
-            return f"    {self.target_table_name}[{self.multiplicity_min}..{self.multiplicity_max}] {self.origin_attribute_name}"

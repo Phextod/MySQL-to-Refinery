@@ -1,5 +1,7 @@
+import inspect
 import math
 from typing import Dict
+from jinja2 import Template
 
 from src.db_model.DBAttribute import DBAttribute
 from src.db_model.DBRelation import DBRelation
@@ -15,18 +17,42 @@ class DBModel:
     def add_table(self, table_name, db_table):
         self.db_tables.update({table_name: db_table})
 
-    def generate_refinery_code(self):
-        classes_strings = "\n".join([tab.generate_refinery_code() for tab in self.db_tables.values()])
+    def generate_refinery_code(self, node_multiplicity_multiplier, multiplicity_max_multiplier=1.2):
+        template = Template(inspect.cleandoc("""
+        {% for tab in db_tables.values() -%}
+        class {{ tab.name }} {
+        {%- if tab.relations -%}
+            {%- for relation in tab.relations %}
+            {{ relation.target_table_name }}
+            {%- if relation.multiplicity_min == relation.multiplicity_max -%}
+            [{{ relation.multiplicity_min }}]{{" "}} 
+            {%- else -%}
+            [{{ relation.multiplicity_min }}..{{ relation.multiplicity_max }}]
+            {%- endif -%}
+            {{ relation.origin_attribute_name }}
+            {%- endfor %}
+        }
+        {%- else -%}
+        }
+        {%- endif %}
+        {% endfor %}
+        scope node={{ node_multiplicity_min }}..{{ node_multiplicity_max }},
+           {% for name, tab in db_tables.items() -%}
+           {{ name }}={{ tab.scope_count_min }}..{{ tab.scope_count_max }}{% if not loop.last %},{% else %}.{% endif %}
+           {% endfor %}
+        """))
 
-        scope_strings = ",\n   ".join([f"{name}="
-                                       f"{tab.scope_count_min}..{tab.scope_count_max}"
-                                       for name, tab in self.db_tables.items()])
+        node_multiplicity_min = \
+            sum(tab.scope_count_min for tab in self.db_tables.values()) * node_multiplicity_multiplier
+        node_multiplicity_max = math.ceil(node_multiplicity_min * multiplicity_max_multiplier)
 
-        node_multiplicity_min = sum(tab.scope_count_min for tab in self.db_tables.values())
-        node_multiplicity_max = math.ceil(node_multiplicity_min * 1.2)  # TODO calc from table.scope_count_max
-        scope_node_string = f"node={node_multiplicity_min}..{node_multiplicity_max},"
+        rendered_template = template.render(
+            db_tables=self.db_tables,
+            node_multiplicity_min=node_multiplicity_min,
+            node_multiplicity_max=node_multiplicity_max,
+        )
 
-        return f"{classes_strings}\n\nscope {scope_node_string}\n   {scope_strings}."
+        return rendered_template
 
     def refinery_result_to_sql(self, refinery_result_path):
         self.db_tables = CalcFillOrder.calc_fill_order(self.db_tables)

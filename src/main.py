@@ -31,7 +31,7 @@ def main():
 
     db_model = generate_db_model(tables, table_relations, table_descriptions)
 
-    refinery_code = db_model.generate_refinery_code()
+    refinery_code = db_model.generate_refinery_code(10)
 
     # Create directories if they don't exist
     os.makedirs(os.path.dirname(REFINERY_CODE_PATH), exist_ok=True)

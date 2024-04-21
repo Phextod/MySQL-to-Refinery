@@ -37,8 +37,9 @@ class DBTable:
         generation_seed = int(object_name.replace(self.name, ""))
         attribute_values = {}
         for attribute in self.attributes:
+            is_id = attribute.key_type == "PRI"
             attribute_values.update({
-                attribute.name: generate_data_for_type(attribute.db_type, generation_seed, object_name)
+                attribute.name: generate_data_for_type(attribute.db_type, generation_seed, object_name, is_id)
             })
         self.objects.update({object_name: {name: val for name, val in attribute_values.items()}})
 

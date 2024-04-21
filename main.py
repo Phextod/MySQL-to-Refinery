@@ -53,7 +53,7 @@ def main():
 
     if not args.skip_sql_review:
         print(f"Data inserting SQL written to {config.INSERT_SQL_PATH}. Review it before continuing!")
-        input("Press Enter to run data/out/insert_data.sql on the database...")
+        input(f"Press Enter to run {config.INSERT_SQL_PATH} on the database...")
 
         # Reading back the reviewed/updated sql
         with open(config.INSERT_SQL_PATH, "r") as file:

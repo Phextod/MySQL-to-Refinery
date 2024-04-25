@@ -8,5 +8,6 @@
   "REFINERY_JAR_PATH": "./refinery_generator/refinery-generator-cli-0.0.0-SNAPSHOT-all.jar",
   "REFINERY_CODE_PATH": "./data/out/refinery_code.problem",
   "REFINERY_RESULT_PATH": "./data/out/refinery_result.txt",
-  "INSERT_SQL_PATH": "./data/out/insert_data.sql"
+  "INSERT_SQL_PATH": "./data/out/insert_data.sql",
+  "BENCHMARK_RESULT_PATH": "./data/out/benchmark_result.txt"
 }

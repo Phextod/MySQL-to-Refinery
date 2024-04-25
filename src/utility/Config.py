@@ -13,6 +13,7 @@ class Config:
             self.REFINERY_CODE_PATH = os.path.abspath(config['REFINERY_CODE_PATH'])
             self.REFINERY_RESULT_PATH = os.path.abspath(config['REFINERY_RESULT_PATH'])
             self.INSERT_SQL_PATH = os.path.abspath(config['INSERT_SQL_PATH'])
+            self.BENCHMARK_RESULT_PATH = os.path.abspath(config['BENCHMARK_RESULT_PATH'])
 
 
 def load_config(config_file_path):

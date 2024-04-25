@@ -17,7 +17,7 @@ class DBModel:
     def add_table(self, table_name, db_table):
         self.db_tables.update({table_name: db_table})
 
-    def generate_refinery_code(self, node_multiplicity_multiplier, multiplicity_max_multiplier=1.2):
+    def generate_refinery_code(self, node_multiplicity_multiplier, multiplicity_max_multiplier):
         template = Template(inspect.cleandoc("""
         {% for tab in db_tables.values() -%}
         class {{ tab.name }} {
@@ -36,11 +36,16 @@ class DBModel:
         }
         {%- endif %}
         {% endfor %}
+        //composite key constraints
+        
         scope node={{ node_multiplicity_min }}..{{ node_multiplicity_max }},
            {% for name, tab in db_tables.items() -%}
-           {{ name }}={{ tab.scope_count_min }}..{{ tab.scope_count_max }}{% if not loop.last %},{% else %}.{% endif %}
+           {{ name }}={{ (tab.scope_count_min * scope_multi)|int }}..{{ tab.scope_count_max }}{% if not loop.last %},{% else %}.{% endif %}
            {% endfor %}
         """))
+
+        composite_keys = self.get_composite_keys()
+        # todo create composite key constraints
 
         node_multiplicity_min = \
             math.ceil(sum(tab.scope_count_min for tab in self.db_tables.values()) * node_multiplicity_multiplier)
@@ -50,6 +55,7 @@ class DBModel:
             db_tables=self.db_tables,
             node_multiplicity_min=node_multiplicity_min,
             node_multiplicity_max=node_multiplicity_max,
+            scope_multi=node_multiplicity_multiplier,
         )
 
         return rendered_template
@@ -67,7 +73,8 @@ class DBModel:
             while not line.strip().startswith("declare"):
                 line = file.readline()
 
-            object_names_and_tables = {name: "" for name in line.strip("declare .\n").split(", ")}
+            clean_line = line.replace("declare", "").strip()[:-1]
+            object_names_and_tables = {name: "" for name in clean_line.split(", ")}
             line = file.readline()
 
             # ignore lines until object creation
@@ -169,6 +176,14 @@ class DBModel:
 
         insert_sql = insert_sql[:-1]
         return insert_sql
+
+    def get_composite_keys(self):
+        composite_keys = {}
+        for db_table in self.db_tables.values():
+            keys = [a.name for a in db_table.attributes if a.key_type == "PRI"]
+            if len(keys) > 1:
+                composite_keys.update({db_table.name: keys})
+        return composite_keys
 
 
 def generate_db_model(tables, table_relations, table_descriptions) -> DBModel:

@@ -33,8 +33,8 @@ class DBTable:
     def add_relation(self, relation):
         self.relations.append(relation)
 
-    def add_object(self, object_name):
-        generation_seed = int(object_name.replace(self.name, ""))
+    def add_object(self, object_name: str):
+        generation_seed = int(object_name.lower().replace(self.name.lower(), ""))
         attribute_values = {}
         for attribute in self.attributes:
             is_id = attribute.key_type == "PRI"

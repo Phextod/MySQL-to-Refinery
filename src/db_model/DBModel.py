@@ -42,12 +42,12 @@ class DBModel:
             {{table_name}}_object != {{table_name}}_other,
             {% for key in keys -%}
             {{key}}({{table_name}}_object,ref_{{key}}),
-            {{key}}({{table_name}}_other,ref_{{key}}){% if not loop.last %},{% else %}.{% endif %}
+            {{key}}({{table_name}}_other,ref_{{key}}){{ "," if not loop.last else "." }}
             {% endfor %}
         {% endfor %}
         scope node={{ node_multiplicity_min }}..{{ node_multiplicity_max }},
            {% for name, tab in db_tables.items() -%}
-           {{ name }}={{ (tab.scope_count_min * scope_multi)|int }}..{{ tab.scope_count_max }}{% if not loop.last %},{% else %}.{% endif %}
+           {{ name }}={{ (tab.scope_count_min * scope_multi)|int }}..{{ tab.scope_count_max }}{{ "," if not loop.last else "." }}
            {% endfor %}
         """))
 
@@ -114,81 +114,117 @@ class DBModel:
                 line = file.readline()
 
     def db_objects_to_sql(self):
-        insert_sql = ""
 
-        insert_sql += "SET FOREIGN_KEY_CHECKS=0;\n"
-        insert_sql += "\n".join([f"DELETE FROM {table_name};" for table_name in self.db_tables.keys()])
-        insert_sql += "\nSET FOREIGN_KEY_CHECKS=1;\n"
-        insert_sql += "\n\n"
+        # delete statements
+        template_delete_from_tables = Template(inspect.cleandoc("""
+        SET FOREIGN_KEY_CHECKS=0;
+        {% for table_name in db_tables.keys() -%}
+        DELETE FROM {{ table_name }};
+        {% endfor -%}
+        SET FOREIGN_KEY_CHECKS=1;
+        """))
 
-        # Write INSERT statements
-        for table_name, table in self.db_tables.items():
-            attribute_names = [a.name for a in table.attributes]
-            has_self_reference = bool([r for r in table.relations if r.target_table_name == r.origin_table_name])
-            if has_self_reference:
-                insert_sql += "SET FOREIGN_KEY_CHECKS=0;\n"
-            insert_sql += f"INSERT INTO {table_name} ({','.join(attribute_names)}) VALUES\n"
+        delete_from_tables = template_delete_from_tables.render(
+            db_tables=self.db_tables,
+        )
+
+        template_insert_statements = Template(inspect.cleandoc("""
+        {% if has_self_reference %}
+        SET FOREIGN_KEY_CHECKS=0; {% endif %}
+        INSERT INTO {{db_table.name}} (
+        {%- for attribute in db_table.attributes -%}
+        {{attribute.name}}{{ "," if not loop.last else "" }}
+        {%- endfor -%}
+        ) VALUES
+        {% for object_name, db_object in db_table.objects.items() -%}
+        (
+        {%- for attribute in db_table.attributes -%}
+        {%- if attribute.name in unfilled_reference_attribute_names -%}
+        NULL
+        {%- else -%}
+        {{db_object[attribute.name]}}
+        {%- endif -%}
+        {{ "," if not loop.last else "" }}
+        {%- endfor -%}
+        ){{ "," if not loop.last else ";" }}
+        {%- endfor %}
+        {% if has_self_reference -%} SET FOREIGN_KEY_CHECKS=1;
+        {% endif %}
+        """))
+
+        # insert statements
+        insert_statements = ""
+        for db_table in self.db_tables.values():
+            has_self_reference = bool([r for r in db_table.relations if r.target_table_name == r.origin_table_name])
 
             unfilled_reference_attribute_names = []
-            for relation in table.relations:
+            for relation in db_table.relations:
                 # Self references do not matter
-                if relation.target_table_name == table_name:
+                if relation.target_table_name == db_table.name:
                     continue
                 if self.db_tables[relation.target_table_name].fill_status == FillStatus.NOT_FILLED:
                     unfilled_reference_attribute_names.append(relation.origin_attribute_name)
 
-            for object_name, db_object in table.objects.items():
-                attribute_values = []
-                for attribute in attribute_names:
-                    if attribute in unfilled_reference_attribute_names:
-                        attribute_values.append("NULL")
-                    else:
-                        attribute_values.append(db_object[attribute])
-
-                insert_sql += "(" + (",".join(attribute_values)) + "),"
-
             if unfilled_reference_attribute_names:
-                table.fill_status = FillStatus.HALF_FILLED
+                db_table.fill_status = FillStatus.HALF_FILLED
             else:
-                table.fill_status = FillStatus.FILLED
+                db_table.fill_status = FillStatus.FILLED
 
-            insert_sql = insert_sql[:-1] + ";\n"
-            if has_self_reference:
-                insert_sql += "SET FOREIGN_KEY_CHECKS=1;\n"
-            insert_sql += "\n"
+            insert_statements += template_insert_statements.render(
+                db_table=db_table,
+                has_self_reference=has_self_reference,
+                unfilled_reference_attribute_names=unfilled_reference_attribute_names,
+            )
 
-        # Write UPDATE statements for tables that were half filled
+        template_update_statements = Template(inspect.cleandoc(""" 
+        {% for object_name, db_object in db_table.objects.items() -%}
+        UPDATE {{db_table.name}}
+        SET{{" "}}
+        {%- for attribute_name in updatable_attribute_names -%}
+        {%- if attribute_name in unfilled_reference_attribute_names -%}
+         NULL
+        {%- else -%}
+         {{attribute_name}} = {{db_object[attribute_name]}}
+        {%- endif -%}
+        {{ ", " if not loop.last else "" }}
+        {%- endfor %}
+        WHERE{{" "}}
+        {%- for attribute_name in id_attribute_names -%}
+        {{attribute_name}} = {{db_object[attribute_name]}}{{ "," if not loop.last else ";" }}
+        {% endfor %}
+        {% endfor -%}
+        """))
+
+        # update statements
+        update_statements = ""
         tables_to_update = [t for t in self.db_tables.values() if t.fill_status == FillStatus.HALF_FILLED]
-        for table in tables_to_update:
-            unfilled_reference_attribute_names = []
-            attribute_names = []
-            for relation in table.relations:
-                # Self references do not matter
-                if relation.target_table_name == table.name:
-                    continue
-                if self.db_tables[relation.target_table_name].fill_status == FillStatus.NOT_FILLED:
-                    unfilled_reference_attribute_names.append(relation.origin_attribute_name)
-                else:
-                    attribute_names.append(relation.origin_attribute_name)
+        while tables_to_update:
+            for db_table in tables_to_update:
+                unfilled_reference_attribute_names = []
+                updatable_attribute_names = []
+                for relation in db_table.relations:
+                    # Self references do not matter
+                    if relation.target_table_name == db_table.name:
+                        continue
+                    if self.db_tables[relation.target_table_name].fill_status == FillStatus.NOT_FILLED:
+                        unfilled_reference_attribute_names.append(relation.origin_attribute_name)
+                    else:
+                        updatable_attribute_names.append(relation.origin_attribute_name)
 
-            id_attribute_name = [a.name for a in table.attributes if a.key_type == "PRI"][0]
-            for object_name, db_object in table.objects.items():
-                attribute_assignments = []
-                for attribute in attribute_names:
-                    attribute_assignments.append(f"{attribute} = {db_object[attribute]}")
+                id_attribute_names = [a.name for a in db_table.attributes if a.key_type == "PRI"]
 
-                insert_sql += f"UPDATE {table.name}\n"
-                insert_sql += f"SET {', '.join(attribute_assignments)}\n"
-                insert_sql += f"WHERE {id_attribute_name} = {db_object[id_attribute_name]};\n\n"
+                update_statements += template_update_statements.render(
+                    db_table=db_table,
+                    updatable_attribute_names=updatable_attribute_names,
+                    unfilled_reference_attribute_names=unfilled_reference_attribute_names,
+                    id_attribute_names=id_attribute_names,
+                )
 
-            if unfilled_reference_attribute_names:
-                table.fill_status = FillStatus.HALF_FILLED
-            else:
-                table.fill_status = FillStatus.FILLED
-                tables_to_update.remove(table)
+                if not unfilled_reference_attribute_names:
+                    db_table.fill_status = FillStatus.FILLED
+                    tables_to_update.remove(db_table)
 
-        insert_sql = insert_sql[:-1]
-        return insert_sql
+        return f"{delete_from_tables}\n{insert_statements}\n{update_statements}"
 
     def get_reference_composite_keys(self):
         # if a key attribute is not a reference, then refinery can't generate (same) values for it

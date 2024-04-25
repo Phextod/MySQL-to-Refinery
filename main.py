@@ -13,22 +13,22 @@ def main():
     config = load_config(args.config)
 
     benchmark_times = {}
-    benchmark_times.update({"start": time.time()})  # benchmarking
+    benchmark_times.update({"0_start": time.time()})
 
     db_model = db_to_dbmodel(args, config)
-    benchmark_times.update({"db_model_done": time.time()})  # benchmarking
+    benchmark_times.update({"1_db_model_generation": time.time()})
 
     dbmodel_to_refinery_code(args, config, db_model)
-    benchmark_times.update({"refinery_code_done": time.time()})  # benchmarking
+    benchmark_times.update({"2_refinery_code_generation": time.time()})
 
     run_refinery(config.REFINERY_JAR_PATH, config.REFINERY_CODE_PATH, config.REFINERY_RESULT_PATH)
-    benchmark_times.update({"refinery_run_done": time.time()})  # benchmarking
+    benchmark_times.update({"3_refinery_runtime": time.time()})
 
     insert_sql = db_model.refinery_result_to_sql(config.REFINERY_RESULT_PATH)
-    benchmark_times.update({"insert_sql_done": time.time()})  # benchmarking
+    benchmark_times.update({"4_insert_sql_generation": time.time()})
 
     insert_sql_to_db(args, config, insert_sql)
-    benchmark_times.update({"insert_sql_run_done": time.time()})  # benchmarking
+    benchmark_times.update({"5_insert_sql_runtime": time.time()})
 
     save_benchmark_times(args, config, benchmark_times)
 

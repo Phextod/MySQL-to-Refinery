@@ -15,7 +15,8 @@ def main():
     while node_min <= args.node_min_multi_end:
         node_max = args.node_max_multi_start
         while node_max <= args.node_max_multi_end:
-            for _ in range(args.repeat):
+            for repetition in range(args.repeat):
+                print(f"node_min: {node_min}, node_max: {node_max}, repetition: {repetition+1}")
                 command = f"python main.py -min {node_min} -max {node_max} -srr -ssr -db {args.db_name} -b"
                 if args.additional_constraints:
                     command += f" -ac {args.additional_constraints}"

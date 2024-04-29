@@ -14,6 +14,7 @@ class Config:
             self.REFINERY_RESULT_PATH = os.path.abspath(config['REFINERY_RESULT_PATH'])
             self.INSERT_SQL_PATH = os.path.abspath(config['INSERT_SQL_PATH'])
             self.BENCHMARK_RESULT_PATH = os.path.abspath(config['BENCHMARK_RESULT_PATH'])
+            self.FULL_BENCHMARK_RESULT_PATH = os.path.abspath(config['FULL_BENCHMARK_RESULT_PATH'])
 
 
 def load_config(config_file_path):

@@ -25,9 +25,9 @@ class DBModel:
             {%- for relation in tab.relations %}
             {{ relation.target_table_name }}
             {%- if relation.multiplicity_min == relation.multiplicity_max -%}
-            [{{ relation.multiplicity_min }}]{{" "}} 
+            [{{ relation.multiplicity_min }}]{{" "}}
             {%- else -%}
-            [{{ relation.multiplicity_min }}..{{ relation.multiplicity_max }}]
+            [{{ relation.multiplicity_min }}..{{ relation.multiplicity_max }}]{{" "}}
             {%- endif -%}
             {{ relation.origin_attribute_name }}
             {%- endfor %}
@@ -119,7 +119,7 @@ class DBModel:
         template_delete_from_tables = Template(inspect.cleandoc("""
         SET FOREIGN_KEY_CHECKS=0;
         {% for table_name in db_tables.keys() -%}
-        DELETE FROM {{ table_name }};
+        DELETE FROM `{{ table_name }}`;
         {% endfor -%}
         SET FOREIGN_KEY_CHECKS=1;
         """))
@@ -131,9 +131,9 @@ class DBModel:
         template_insert_statements = Template(inspect.cleandoc("""
         {% if has_self_reference %}
         SET FOREIGN_KEY_CHECKS=0; {% endif %}
-        INSERT INTO {{db_table.name}} (
+        INSERT INTO `{{db_table.name}}` (
         {%- for attribute in db_table.attributes -%}
-        {{attribute.name}}{{ "," if not loop.last else "" }}
+        `{{attribute.name}}`{{ "," if not loop.last else "" }}
         {%- endfor -%}
         ) VALUES
         {% for object_name, db_object in db_table.objects.items() -%}
@@ -178,19 +178,19 @@ class DBModel:
 
         template_update_statements = Template(inspect.cleandoc(""" 
         {% for object_name, db_object in db_table.objects.items() -%}
-        UPDATE {{db_table.name}}
+        UPDATE `{{db_table.name}}`
         SET{{" "}}
         {%- for attribute_name in updatable_attribute_names -%}
         {%- if attribute_name in unfilled_reference_attribute_names -%}
          NULL
         {%- else -%}
-         {{attribute_name}} = {{db_object[attribute_name]}}
+         `{{attribute_name}}` = {{db_object[attribute_name]}}
         {%- endif -%}
         {{ ", " if not loop.last else "" }}
         {%- endfor %}
         WHERE{{" "}}
         {%- for attribute_name in id_attribute_names -%}
-        {{attribute_name}} = {{db_object[attribute_name]}}{{ "," if not loop.last else ";" }}
+        `{{attribute_name}}` = {{db_object[attribute_name]}}{{ "," if not loop.last else ";" }}
         {% endfor %}
         {% endfor -%}
         """))
@@ -259,6 +259,8 @@ def generate_db_model(tables, table_relations, table_descriptions) -> DBModel:
         relations_for_table = [r for r in table_relations if r[1] == table_name]
         for relation in relations_for_table:
             db_relation = DBRelation(relation[1], relation[2], relation[4], relation[5], 1, 1)
+            if [a for a in db_table.attributes if a.name == db_relation.origin_attribute_name][0].nullable:
+                db_relation.multiplicity_min = 0
             db_table.add_relation(db_relation)
 
         db_model.add_table(table_name, db_table)

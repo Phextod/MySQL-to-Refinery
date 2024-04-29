@@ -9,5 +9,6 @@
   "REFINERY_CODE_PATH": "./data/out/refinery_code.problem",
   "REFINERY_RESULT_PATH": "./data/out/refinery_result.txt",
   "INSERT_SQL_PATH": "./data/out/insert_data.sql",
-  "BENCHMARK_RESULT_PATH": "./data/out/benchmark_result.txt"
+  "BENCHMARK_RESULT_PATH": "./data/out/benchmark_result.txt",
+  "FULL_BENCHMARK_RESULT_PATH": "./data/out/full_benchmark_result.txt"
 }

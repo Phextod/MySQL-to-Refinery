@@ -37,11 +37,20 @@ def save_benchmark_times(args, config, benchmark_times):
     if not args.benchmark:
         return
 
+    headers_line = ",".join([k for k in benchmark_times.keys()])
+    headers_line += ",node-min-multi,node-max-multi"
+
+    values_list = []
+    prev_timestamp = benchmark_times["0_start"]
+    for timestamp in benchmark_times.values():
+        values_list.append(str(round(timestamp - prev_timestamp, 6)))
+        prev_timestamp = timestamp
+
+    values_line = ",".join(values_list)
+    values_line += f",{args.node_min_multi},{args.node_max_multi}"
+
     with open(config.BENCHMARK_RESULT_PATH, "w") as file:
-        prev_timestamp = benchmark_times["start"]
-        for benchmark_name, timestamp in benchmark_times.items():
-            file.write(f"{benchmark_name}: {timestamp - prev_timestamp}\n")
-            prev_timestamp = timestamp
+        file.write(f"{headers_line}\n{values_line}")
 
 
 def db_to_dbmodel(args, config):
@@ -66,6 +75,12 @@ def db_to_dbmodel(args, config):
 
 def dbmodel_to_refinery_code(args, config, db_model):
     refinery_code = db_model.generate_refinery_code(args.node_min_multi, args.node_max_multi)
+
+    # Append additional constraints
+    if args.additional_constraints is not None:
+        refinery_code += "\n//additional constraints\n"
+        with open(args.additional_constraints, "r") as file:
+            refinery_code += file.read()
 
     # Create directories if they don't exist
     os.makedirs(os.path.dirname(config.REFINERY_CODE_PATH), exist_ok=True)
@@ -126,6 +141,8 @@ def parse_arguments():
     parser.add_argument("-b", "--benchmark",
                         action="store_true",
                         help="Save benchmark times to a file")
+    parser.add_argument("-ac", "--additional-constraints",
+                        help="Path to a file, containing additional refinery constraints")
 
     return parser.parse_args()
 

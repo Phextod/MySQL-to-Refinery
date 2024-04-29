@@ -36,10 +36,14 @@ class DBTable:
     def add_object(self, object_name: str):
         generation_seed = int(object_name.lower().replace(self.name.lower(), ""))
         attribute_values = {}
+        reference_attribute_names = [r.origin_attribute_name for r in self.relations]
         for attribute in self.attributes:
-            is_id = attribute.key_type == "PRI"
+            attribute_value = "NULL"
+            if attribute.name not in reference_attribute_names:
+                is_id = attribute.key_type == "PRI"
+                attribute_value = generate_data_for_type(attribute.db_type, generation_seed, object_name, is_id)
             attribute_values.update({
-                attribute.name: generate_data_for_type(attribute.db_type, generation_seed, object_name, is_id)
+                attribute.name: attribute_value
             })
         self.objects.update({object_name: {name: val for name, val in attribute_values.items()}})
 
